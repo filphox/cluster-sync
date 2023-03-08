@@ -1,0 +1,326 @@
+#!/bin/bash
+#
+# Description: Sync files across clusters
+# Author: Phil Fox
+# Date: Nov 25th 2022
+#
+
+CS_BIN="$(dirname $(realpath $0))"
+CS_TOP="$(dirname $CS_BIN)"
+CS_GLOBAL="$CS_TOP/global"
+CS_LOCAL="$CS_TOP/local"
+CS_CLUSTERS="$CS_TOP/clusters"
+CS_HOSTS="$CS_TOP/hosts"
+
+function get_clusters {
+
+	#ls -1d *cluster
+	cd $CS_CLUSTERS
+	ls -1d *
+}
+
+function get_hosts {
+
+	#ls -1d *cluster
+	cd $CS_HOSTS
+	ls -1d *
+}
+
+function check_dir_perms {
+
+    if [ ! -d "$1" ]
+    then
+		echo "Error: directory not found $1"
+		exit 1
+    fi
+    cd $1
+    for dir in $(find . -mindepth 1 -type d -printf '%P\n')
+    do
+        if [ ! -d "/$dir" ]
+        then
+			# No matching directory found in host filesystem
+			# assume perms have been set correctly by user
+            continue
+        fi
+
+		# Get perms for directory in host filesystem
+        sys_stat=$(stat -c "%a" /$dir)
+
+		# Get perms for directory to be checked
+        sync_stat=$(stat -c "%a" $1/$dir)
+
+        if [ $sys_stat -ne $sync_stat ]
+        then
+            echo "Warning: fixing permissions on $1/$dir"
+            chmod $sys_stat $1/$dir
+        fi
+	done
+
+	return 0
+
+}
+
+function valid_cluster {
+
+	chk_cluster="$1"
+
+	for cluster in $CLUSTERLIST
+	do
+		if [ "$chk_cluster" = "$cluster" ]
+		then
+			#echo "'$cluster' = '$element'"
+			return 0
+		fi
+	done
+	#echo no clusters matched
+
+	return 1
+}
+
+function valid_host {
+
+	chk_host="$1"
+
+	for cluster in $CLUSTERLIST
+	do
+		hostfile="$CS_CLUSTERS/$cluster/hosts"
+		if [ -f "$hostfile" ]
+		then
+			grep ^$chk_host$ "$hostfile" 2>&1 >/dev/null
+			if [ $? -eq 0 ]
+			then
+				echo "$cluster"
+				return 0
+			fi
+		fi
+	done
+
+	return 1
+}
+
+function gen_hostfile {
+
+	hostfile="$1"
+	hostlist="$2"
+
+	for host in $hostlist
+	do
+		echo "$host" >> $hostfile
+	done
+
+	return 0
+}
+
+function print_clusters {
+
+	cluster_list="$1"
+	
+	for cluster in $cluster_list
+	do
+		print_cluster "$cluster" "$CS_CLUSTERS/$cluster/hosts"
+	done
+	echo
+
+	return 0
+}
+
+
+function print_cluster {
+
+	cluster="$1"
+	
+	hostfile="$2"
+
+	echo -e "\n[$cluster]"
+	if [ -f "$hostfile" ]
+	then
+		cat $hostfile | sed 's:#.*$::g' | grep -v '^$'
+	else
+		echo "<No hosts defined>"
+	fi
+
+	return 0
+}
+
+function get_hostlist {
+
+	cluster="$1"
+
+	hostfile="$CS_CLUSTERS/$cluster/hosts"
+	if [ -f "$hostfile" ]
+	then
+		hostlist=$(cat $hostfile | sed 's:#.*$::g' | grep -v '^$')
+	else
+		hostlist=""
+	fi
+	echo "$hostlist"
+
+	return 0
+}
+
+########################
+#                      #
+# MAIN                 #
+#                      #
+########################
+
+# Check for existence of pdsh
+PDSH=$(which pdsh 2>/dev/null)
+if [ $? -eq 1 ]
+then
+	echo "Error: <pdsh> tool not installed!"
+	exit 1
+fi
+
+#cd $CS_TOP
+
+# Check directory permissions
+CLUSTERLIST=$(get_clusters)
+HOSTLIST=$(get_hosts)
+
+# Generate group lists for pdsh use outside of this tool
+DSHGRPDIR="/etc/dsh/group"
+if [ ! -d $DSHGRPDIR ]
+then
+	mkdir -p $DSHGRPDIR
+fi
+rm -f "$DSHGRPDIR/all"
+for cluster in $CLUSTERLIST
+do
+	hosts=$(get_hostlist $cluster)
+	echo $hosts > $DSHGRPDIR/$cluster
+	echo $hosts >> "$DSHGRPDIR/all"
+done
+
+check_dir_perms "$CS_GLOBAL"
+check_dir_perms "$CS_LOCAL"
+for cluster in $CLUSTERLIST
+do
+	check_dir_perms "$CS_CLUSTERS/$cluster"
+done
+for host in $HOSTLIST
+do
+	check_dir_perms "$CS_HOSTS/$host"
+done
+
+# Sync global files with cluster-sync host (spectrum-infra1)
+cd $CS_GLOBAL
+for file_path in $(find . -mindepth 1 -type f -printf '%P\n')
+do
+	if [ -f "/$file_path" ]
+	then
+		cp -f /$file_path $CS_GLOBAL/$file_path
+
+		# Get perms for file in host filesystem
+        sys_stat=$(stat -c "%a" /$file_path)
+
+		# Get perms for file to be checked
+        sync_stat=$(stat -c "%a" $CS_GLOBAL/$file_path)
+
+        if [ $sys_stat -ne $sync_stat ]
+        then
+            echo "Warning: fixing permissions on $CS_GLOBAL/$file_path"
+            chmod $sys_stat $CS_GLOBAL/$file_path
+        fi
+	fi
+done
+
+# Print help if user specifies no arguments
+if [ "$1" = "" ]
+then
+	echo -e "\nSyntax: csync --all | [<cluster_name> | <host_name> ] ..."
+	echo -e "\nAvailable clusters:"
+	print_clusters "$CLUSTERLIST"
+	exit 0
+fi
+
+HOSTFILES=$(mktemp -d -p /tmp csync.tmp.XXXXXX)
+if [ "$1" = "--all" ]
+then
+	for cluster in $CLUSTERLIST
+	do
+		hostlist=""
+		hostlist="$(get_hostlist $cluster)"
+
+		if [ "$hostlist" = "" ]
+		then
+			continue
+		fi
+
+		gen_hostfile "$HOSTFILES/$cluster" "$hostlist"
+		#HOSTLIST+=($hostlist)
+		#print_cluster "$cluster"
+	done
+
+elif [ "$1" = "--default" ]
+then
+
+	echo "Set default stuff ..."
+
+else
+	defhosts=()
+	for arg in $@
+	do
+		valid_cluster "$arg"
+		if [ $? -eq 0 ]
+		then
+			hostlist=""
+			hostlist=$(get_hostlist $cluster)
+			if [ "$hostlist" = "" ]
+			then
+				echo -e "\nNo hosts defined for cluster [$arg]"
+				exit 1
+			fi
+			gen_hostfile "$HOSTFILES/$arg" "$hostlist"
+			continue
+		fi
+
+		cluster=$(valid_host "$arg")
+		if [ $? -eq 0 ]
+		then
+			#echo "Valid host from cluster $cluster"
+			gen_hostfile "$HOSTFILES/$cluster" "$arg"
+			continue
+		fi
+
+		echo -e "\nInvalid cluster or host <$arg>"
+		exit 1
+	done
+fi
+
+totalhosts=0
+for hostfile in $HOSTFILES/*
+do
+	cluster=$(basename $hostfile)
+	hostcount=$(cat $hostfile | wc -l)
+	totalhosts=$((totalhosts + hostcount))
+	if [ $hostcount -ne 0 ]
+	then
+		print_cluster "$cluster" "$hostfile"
+	fi
+done
+
+if [ $totalhosts -eq 0 ]
+then
+	echo "No hosts defined"
+	exit 1
+fi
+
+# Run pdsh against selected hosts as 
+# defined in the hostlist
+echo
+read -p "Sync these hosts [y/N]? " answer
+if [ "$answer" = "y" ] || [ "$answer" = "Y" ]
+then
+	echo -e "\nRunning pdsh ...."
+	for hostfile in $HOSTFILES/*
+	do
+		cluster=$(basename $hostfile)
+		remotecmd="if [ -x $CS_BIN/remote ]; then $CS_BIN/remote $CS_TOP $cluster; else echo Failed to execute remote command; fi"
+		$PDSH -R ssh -w ^$hostfile "$remotecmd"
+	done
+else
+	exit 1
+fi
+
+exit 0

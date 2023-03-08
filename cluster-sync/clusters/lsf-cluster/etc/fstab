@@ -1,0 +1,22 @@
+# Managed by cluster-sync on spectrum-infra1 - DO NOT MODIFY
+#
+# /etc/fstab
+# Created by anaconda on Fri Jan 14 04:57:56 2022
+#
+# Accessible filesystems, by reference, are maintained under '/dev/disk/'.
+# See man pages fstab(5), findfs(8), mount(8) and/or blkid(8) for more info.
+#
+# After editing this file, run 'systemctl daemon-reload' to update systemd
+# units generated from this file.
+#
+/dev/mapper/rhel_volgp-root                /                      xfs   defaults   0 0
+UUID=b8d5cf0a-b211-4b0a-b4d9-b47c6e81191b  /boot                  xfs   defaults   0 0
+/dev/mapper/rhel_volgp-swap                none                   swap  defaults   0 0
+
+# Old /home
+#/dev/mapper/rhel_volgp-home                /home                  xfs   defaults   0 0
+
+# 500GB LUN on the V7000
+spectrum-infra1:/lsf-cluster               /lsf-cluster           nfs   defaults   0 0
+spectrum-infra1:/home                      /home                  nfs   defaults   0 0
+spectrum-infra1:/userdata                  /userdata              nfs   defaults   0 0

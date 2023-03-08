@@ -1,0 +1,48 @@
+# Managed by cluster-sync on spectrum-infra1 - DO NOT MODIFY
+
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+# Infrastructure node for LSF and Suite clusters
+10.3.196.30    spectrum-infra1  spectrum-infra1.sls30lab.com
+9.5.93.46      spectrum-infra1.rch.stglabs.ibm.com
+
+# Kubernetes cluster
+10.3.196.60    kube-master1     kube-master1.sls30lab.com	kube-cluster-endpoint
+10.3.196.61    kube-worker1     kube-worker1.sls30lab.com
+
+9.5.92.216     kube-master1.rch.stglabs.ibm.com
+9.5.93.31      kube-worker1.rch.stglabs.ibm.com
+
+# Scale Cluster
+10.3.196.21    scale-nsd1       scale-nsd1.sls30lab.com
+10.3.196.22    scale-nsd2       scale-nsd2.sls30lab.com
+10.3.196.23    scale-nsd3       scale-nsd3.sls30lab.com
+
+# LSF Cluster
+10.3.196.34    lsf-master       lsf-master.sls30lab.com
+10.3.196.58    lsf-master2      lsf-master2.sls30lab.com
+10.3.196.17    lsf-compute1     lsf-compute1.sls30lab.com
+10.3.196.238   lsf-pac          lsf-pac.sls30lab.com
+10.3.196.20    lsf-rtm          lsf-rtm.sls30lab.com
+10.3.196.235   lsf-ppm          lsf-ppm.sls30lab.com
+
+# Suite cluster
+10.3.196.50    suite-master1    suite-master1.sls30lab.com
+10.3.196.51    suite-master2    suite-master2.sls30lab.com
+10.3.196.52    suite-compute1   suite-compute1.sls30lab.com
+10.3.196.53    suite-compute2   suite-compute2.sls30lab.com
+10.3.196.54    suite-db         suite-db.sls30lab.com
+10.3.196.55    suite-gui1       suite-gui1.sls30lab.com
+10.3.196.56    suite-gui2       suite-gui2.sls30lab.com
+10.3.196.57    suite-gui3       suite-gui3.sls30lab.com
+
+# Symphony Labs
+10.3.137.64  sym-master  sym-master.sls30lab.com
+10.3.137.110 sym-compute sym-compute.sls30lab.com
+
+# Citi Environment
+10.3.196.70    vpn-host			vpn-host.sls30lab.com
+9.5.92.255	   vpn-host.rch.stglabs.ibm.com
+172.200.2.11   citi-jumphost
+

@@ -1,0 +1,22 @@
+#!/bin/bash
+
+if [ -z "$1" ]
+then
+    echo
+	echo "1. lsf-cluster"
+	echo "2. suite-cluster"
+	echo
+	read -p "Select cluster: " choice
+else
+	choice=$1
+fi
+
+#set -a
+if [ $choice -eq 1 ]
+then
+    source /shared/lsf/conf/profile.lsf 
+elif [ $choice -eq 2 ]
+then
+    source /suite-cluster/lsf/conf/profile.lsf 
+fi
+#set +a

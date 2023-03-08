@@ -1,0 +1,69 @@
+#!/bin/bash
+
+CS_TOP="$1"
+CLUSTER="$2"
+
+# Check for directory holding global files and sync
+if [ ! -d "$CS_TOP/global" ]
+then
+	echo "Sync dir $CS_TOP/global not found!"
+	exit 1
+fi
+
+rsync -I -a $CS_TOP/global/ /
+if [ $? -ne 0 ]
+then
+	echo "Failed to sync global files"
+	exit 1
+fi
+
+# Check for directory holding local files and sync
+if [ ! -d "$CS_TOP/local" ]
+then
+	echo "Sync dir $CS_TOP/$local not found!"
+	exit 1
+fi
+
+rsync -I -a $CS_TOP/local/ /
+if [ $? -ne 0 ]
+then
+	echo "Failed to sync local files"
+	exit 1
+fi
+
+# Check for directory containing cluster specific files and sync
+if [ ! -d "$CS_TOP/clusters/$CLUSTER" ]
+then
+	echo "Sync dir $CS_TOP/clusters/$CLUSTER not found!"
+	exit 1
+fi
+
+rsync -I -a $CS_TOP/clusters/$CLUSTER/ /
+if [ $? -ne 0 ]
+then
+	echo "Failed to sync cluster specific files"
+	exit 1
+fi
+
+# Check for directory containing host specific files and sync
+host=$(hostname -s)
+if [ -d "$CS_TOP/hosts/$host" ]
+then
+	rsync -I -a $CS_TOP/hosts/$host/ /
+	if [ $? -ne 0 ]
+	then
+		echo "Failed to sync host specific files"
+		exit 1
+	fi
+fi
+
+echo "Sync was successful"
+
+if [ -f "/hosts" ]
+then
+	#echo "Hostfile found, deleting"
+	rm -f "/hosts"
+fi
+
+exit 0
+
